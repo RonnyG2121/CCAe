@@ -1,6 +1,7 @@
 const Color = require('./color.js') // https://github.com/Qix-/color/
 const cssKeywords = require('color-name');
 const blinder = require('color-blind');
+const { apcaContrast } = require('./apca.js')
 
 Color.prototype.real = null
 Color.prototype.displayedValue = null
@@ -80,6 +81,10 @@ Color.prototype.getColorTextString=function (format) {
         default: //hex
             return this.getReal().hex()
     }
+}
+
+Color.prototype.apcaContrast = function(otherColor) {
+    return apcaContrast(this.getReal(), otherColor)
 }
 
 module.exports = Color

@@ -46,6 +46,11 @@ function applyContrastRatio (contrastRatio) {
     ['achromatopsia', 'achromatomaly', 'protanopia', 'protanomaly', 'deuteranopia', 'deuteranomaly', 'tritanopia', 'tritanomaly'].forEach(function(key, index) {
         const crr = contrastRatio[key].toLocaleString(i18n.lang)
         document.getElementById('deficiency-' + key + '-cr').innerHTML = `${crr}:1`
+        const apcaKey = key + 'Apca'
+        if (contrastRatio[apcaKey] !== undefined) {
+            const apcaVal = Math.abs(contrastRatio[apcaKey]).toLocaleString(i18n.lang)
+            document.getElementById('deficiency-' + key + '-apca').innerHTML = `APCA: ${apcaVal}`
+        }
     })
 }
 

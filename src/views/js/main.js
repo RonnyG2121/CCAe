@@ -299,7 +299,8 @@ async function applyColorTextString(section, color) {
         const freeFormat =  document.querySelector('#' + section + '-free-format')    
         textInput.removeAttribute('aria-invalid')
         freeFormat.removeAttribute('aria-live')
-        freeFormat.innerHTML = color.format.toUpperCase() + " format"
+        const formatLabel = _i18n.T('Main', color.format).toUpperCase()
+        freeFormat.innerHTML = _i18n.T('Main', 'format').replace('%s', formatLabel)
         formatSelector.style.display = "block";
     }
 }
@@ -307,7 +308,8 @@ async function applyColorTextString(section, color) {
 function applyColorPreview(section, color) {
     document.querySelector('#' + section + '-color').style.background = color.rgb
     if (color.name) {
-        document.querySelector('#' + section + '-color .name-value').innerHTML = '&nbsp;(' + color.name + ')'
+        const translatedName = _i18n.T('ColorName', color.name)
+        document.querySelector('#' + section + '-color .name-value').innerHTML = '&nbsp;(' + translatedName + ')'
     } else {
         document.querySelector('#' + section + '-color .name-value').innerHTML = null        
     }
@@ -412,6 +414,33 @@ function applyContrastRatio(contrastRatio) {
     document.getElementById('contrast-level-1-4-3').innerHTML = level_1_4_3
     document.getElementById('contrast-level-1-4-6').innerHTML = level_1_4_6
     document.getElementById('contrast-level-1-4-11').innerHTML = level_1_4_11
+
+    applyAPCAResults(contrastRatio)
+}
+
+function applyAPCAResults(contrastRatio) {
+    if (!contrastRatio.apca) return
+
+    const absVal = Math.abs(contrastRatio.apca)
+    const sign = contrastRatio.apca >= 0 ? '+' : ''
+    document.querySelector('#apca-value-num').innerHTML = `${sign}${absVal.toLocaleString(_i18n.lang)}`
+    document.querySelector('#apca-level').innerHTML = `${_i18n.T('Main', 'Level')}: ${_i18n.T('Main', contrastRatio.apcaLevelLabel)}`
+
+    const tiers = [
+        { key: 'AAA', threshold: 90 },
+        { key: 'AA', threshold: 75 },
+        { key: 'text', threshold: 60 },
+        { key: 'large', threshold: 45 },
+        { key: 'ui', threshold: 30 },
+    ]
+    tiers.forEach(({ key, threshold }) => {
+        const el = document.querySelector(`.apca-tier[data-tier="${key}"] .apca-tier-result`)
+        if (absVal >= threshold) {
+            el.innerHTML = `<img src="icons/pass.svg" alt="" /> ${_i18n.T('Main', 'Pass')}`
+        } else {
+            el.innerHTML = `<img src="icons/fail.svg" alt="" /> ${_i18n.T('Main', 'Fail')}`
+        }
+    })
 }
 
 function validateForegroundText(value) {
@@ -454,7 +483,8 @@ function displayValidate(section, format, string) {
         input.setAttribute('aria-invalid', false)
         formatSelector.value = format.toLowerCase()
         formatSelector.style.display = "block"
-        freeFormat.innerHTML = format + ' format detected'
+        const formatLabel = _i18n.T('Main', format)
+        freeFormat.innerHTML = _i18n.T('Main', 'format detected').replace('%s', formatLabel)
     } else {
         input.setAttribute('aria-invalid', true)
         formatSelector.style.display = "none"
@@ -466,7 +496,7 @@ function leaveText(section, el) {
     if (el.getAttribute('aria-invalid') === 'true') {
         const freeFormat =  document.querySelector('#' + section + '-free-format')
         if (freeFormat.getAttribute('aria-live')) {
-            freeFormat.innerHTML = 'Error, Incorrect ' + section + ' format'
+            freeFormat.innerHTML = _i18n.T('Main', 'error incorrect format').replace('%s', section)
         }
     } else {
         let color = sharedObject.deficiencies.normal[section + "Color"]
@@ -574,6 +604,23 @@ function translateHTML(i18n) {
     document.querySelector('details span#sc_1_4_3').innerHTML = i18n.T('Main', 'sc_1_4_3')
     document.querySelector('details span#sc_1_4_6').innerHTML = i18n.T('Main', 'sc_1_4_6')
     document.querySelector('details span#sc_1_4_11').innerHTML = i18n.T('Main', 'sc_1_4_11')
+
+    document.querySelector('#apca-results header h2').textContent = i18n.T('Main', 'APCA results')
+    document.querySelector('#apca-value h3').textContent = i18n.T('Main', 'APCA contrast')
+    document.querySelector('#apca-level').innerHTML = `${i18n.T('Main', 'Level')}: --`
+    document.querySelectorAll('.apca-tier').forEach(el => {
+        const tier = el.getAttribute('data-tier')
+        const labelParts = {
+            'AAA': 'AAA',
+            'AA': 'AA',
+            'text': i18n.T('Main', 'Text'),
+            'large': i18n.T('Main', 'large text'),
+            'ui': i18n.T('Main', 'UI components'),
+        }
+        const threshold = { 'AAA': 90, 'AA': 75, 'text': 60, 'large': 45, 'ui': 30 }
+        const label = el.childNodes[0]
+        label.textContent = `${labelParts[tier]} (≥${threshold[tier]}): `
+    })
 
     document.querySelector('#updateAvailable button').setAttribute("aria-label", i18n.T('Main', 'Close'))
 }

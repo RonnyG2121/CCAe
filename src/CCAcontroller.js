@@ -17,30 +17,40 @@ class CCAController {
             'general.contrastRatioRaw': 0,
             'general.levelAA': 'regular',
             'general.levelAAA': 'regular',
+            'general.apcaContrastRaw': 0,
+            'general.apcaLevel': 'fail',
             'achromatopsia.foregroundColor': null,
             'achromatopsia.backgroundColor': null,
             'achromatopsia.contrastRatioRaw': 0,
+            'achromatopsia.apcaContrastRaw': 0,
             'achromatomaly.foregroundColor': null,
             'achromatomaly.backgroundColor': null,
             'achromatomaly.contrastRatioRaw': 0,
+            'achromatomaly.apcaContrastRaw': 0,
             'protanopia.foregroundColor': null,
             'protanopia.backgroundColor': null,
             'protanopia.contrastRatioRaw': 0,
+            'protanopia.apcaContrastRaw': 0,
             'deuteranopia.foregroundColor': null,
             'deuteranopia.backgroundColor': null,
             'deuteranopia.contrastRatioRaw': 0,
+            'deuteranopia.apcaContrastRaw': 0,
             'tritanopia.foregroundColor': null,
             'tritanopia.backgroundColor': null,
             'tritanopia.contrastRatioRaw': 0,
+            'tritanopia.apcaContrastRaw': 0,
             'protanomaly.foregroundColor': null,
             'protanomaly.backgroundColor': null,
             'protanomaly.contrastRatioRaw': 0,
+            'protanomaly.apcaContrastRaw': 0,
             'deuteranomaly.foregroundColor': null,
             'deuteranomaly.backgroundColor': null,
             'deuteranomaly.contrastRatioRaw': 0,
+            'deuteranomaly.apcaContrastRaw': 0,
             'tritanomaly.foregroundColor': null,
             'tritanomaly.backgroundColor': null,
-            'tritanomaly.contrastRatioRaw': 0
+            'tritanomaly.contrastRatioRaw': 0,
+            'tritanomaly.apcaContrastRaw': 0
         }
         this.init()
     }
@@ -325,12 +335,20 @@ class CCAController {
             this.sharedObject['general.levelAA'] = 'fail'
         }
 
+        const apca = this.sharedObject['general.foregroundColor'].getReal().apcaContrast(this.sharedObject['general.backgroundColor'])
+        this.sharedObject['general.apcaContrastRaw'] = apca.value
+        this.sharedObject['general.apcaLevel'] = apca.level
+
         const object = {
             levelAA: this.sharedObject['general.levelAA'],
             levelAAA: this.sharedObject['general.levelAAA'],
             raw: cr,
             rounded: crr,
             rounding: rounding,
+            apca: apca.value,
+            apcaAbs: apca.absValue,
+            apcaLevel: apca.level,
+            apcaLevelLabel: apca.levelLabel,
         }
         const def = ['achromatopsia', 'achromatomaly', 'protanopia', 'protanomaly', 'deuteranopia', 'deuteranomaly', 'tritanopia', 'tritanomaly']
         def.forEach(key => {
@@ -338,6 +356,10 @@ class CCAController {
             this.sharedObject[`${key}.contrastRatioRaw`] = Number(cr.toFixed(3))
             const crr = Number(cr.toFixed(rounding))
             object[key] = crr
+
+            const defApca = this.sharedObject[`${key}.foregroundColor`].apcaContrast(this.sharedObject[`${key}.backgroundColor`])
+            this.sharedObject[`${key}.apcaContrastRaw`] = defApca.value
+            object[`${key}Apca`] = defApca.value
         })
         return object
     }
@@ -382,18 +404,26 @@ class CCAController {
         const crr = Number(cr.toFixed(rounding)).toLocaleString(i18n.lang)
         // toLocalString removes trailing zero and use the correct decimal separator, based on the app select lang.
 
+        const apca = this.sharedObject['general.apcaContrastRaw']
+        const apcaLevel = this.sharedObject['general.apcaLevel']
+        const apcaAbs = Math.abs(apca)
+        const apcaStr = apcaAbs.toFixed(rounding).toLocaleString(i18n.lang)
+
         let text = template;
         for (const item of [
             ['%f.hex%', foregroundColorString],
             ['%b.hex%', backgroundColorString],
             ['%cr%', cr],
             ['%crr%', crr],
+            ['%apca%', apcaStr],
+            ['%apcaLevel%', apcaLevel],
             ['%1.4.3%', level_1_4_3],
             ['%1.4.6%', level_1_4_6],
             ['%1.4.11%', level_1_4_11],
             ['%i18n.f%', t.CopyPaste["Foreground"]],
             ['%i18n.b%', t.CopyPaste["Background"]],
             ['%i18n.cr%', t.Main["Contrast ratio"]],
+            ['%i18n.apca%', t.Main["APCA contrast"]],
             ['%i18n.1.4.3%', t.Main["1.4.3 Contrast (Minimum) (AA)"]],
             ['%i18n.1.4.6%', t.Main["1.4.6 Contrast (Enhanced) (AAA)"]],
             ['%i18n.1.4.11%', t.Main["1.4.11 Non-text Contrast (AA)"]],

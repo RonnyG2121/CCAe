@@ -94,6 +94,16 @@ const schema = {
         //%i18n.1.4.6% : "1.4.6 Contrast (Enhanced)"
         //%i18n.1.4.11% : "1.4.11 Non-text Contrast"
     },
+    apca: {
+        type: 'object',
+        properties: {
+            enabled: {
+                type: 'boolean',
+                default: true,
+            }
+        },
+        default: {}
+    },
     picker: {
         type: 'integer',
         default: (process.platform === 'win32' || process.platform === 'win64' || /^(msys|cygwin)$/.test(process.env.OSTYPE))?2:1, // Disable for Windows until https://github.com/electron/electron/issues/27980
