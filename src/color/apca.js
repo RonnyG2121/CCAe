@@ -34,7 +34,7 @@ function apcaContrast(fgColor, bgColor) {
     if (isDarkText) {
         Lc = (Math.pow(bgY, 0.56) - Math.pow(textY, 0.57)) * 1.14 * 100
     } else {
-        Lc = (Math.pow(bgY, 0.56) - Math.pow(textY, 0.57)) * 1.14 * 100
+        Lc = (Math.pow(bgY, 0.57) - Math.pow(textY, 0.56)) * 1.14 * 100
     }
 
     Lc = Math.round(clamp(Math.abs(Lc), 0, 100) * 100) / 100
