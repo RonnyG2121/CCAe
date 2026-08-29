@@ -1,52 +1,102 @@
-function sRGBtoY(r, g, b) {
-    function linearize(v) {
-        v = v / 255
-        if (v <= 0.04045) return v / 12.92
-        return Math.pow((v + 0.055) / 1.055, 2.4)
-    }
-    return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+const { APCAcontrast, sRGBtoY, fontLookupAPCA, reverseAPCA } = require('apca-w3')
+
+// APCA recommended / minimum thresholds (Bronze "Simple Mode" + guidance).
+// Guidance based on the current APCA "Readability Criterion" drafts.
+// NOTE (2026): APCA is a candidate / design-guidance metric, NOT a finalized
+// WCAG 3 conformance requirement (the WCAG 3 contrast algorithm is still
+// marked "Exploratory" by the W3C). Keep WCAG 2.x as the normative standard.
+
+const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900]
+
+function colorToY (color) {
+    const rgb = color.rgb().color
+    return sRGBtoY([rgb[0], rgb[1], rgb[2]])
 }
 
-function clamp(v, min, max) {
+function clamp (v, min, max) {
     return Math.min(Math.max(v, min), max)
 }
 
-function getAPCALevel(absLc) {
-    if (absLc >= 90) return { level: 'AAA', label: 'Preferred (AAA)' }
-    if (absLc >= 75) return { level: 'AA', label: 'Good (AA)' }
-    if (absLc >= 60) return { level: 'text', label: 'Text' }
-    if (absLc >= 45) return { level: 'large', label: 'Large text' }
-    if (absLc >= 30) return { level: 'ui', label: 'UI components' }
-    if (absLc >= 15) return { level: 'low', label: 'Low contrast' }
-    return { level: 'fail', label: 'Fail' }
+// Minimum font size (px) required for the given Lc and weight, from the
+// official APCA font lookup table (index [1..9] map to weights 100..900).
+function minFontSizeFor (absLc, weight) {
+    const array = fontLookupAPCA(absLc)
+    if (!array) return null
+    const idx = WEIGHTS.indexOf(weight)
+    if (idx === -1) return null
+    return array[idx + 1]
 }
 
-function apcaContrast(fgColor, bgColor) {
-    const textRGB = fgColor.rgb().color
-    const bgRGB = bgColor.rgb().color
+// Minimum Lc required for the given font size + weight to be fluently readable.
+// We invert the lookup table: find the smallest Lc whose required font size
+// <= the chosen size. Weight is clamped 100..900.
+// NOTE: this follows the strict "fluent readability" table; used only to expose
+// "required Lc" as guidance, not to change the tier classification.
+function minLcFor (fontSize, weight) {
+    const w = clamp(Math.round((weight || 400) / 100) * 100, 100, 900)
+    const size = fontSize || 16
+    for (let lc = 90; lc >= 15; lc--) {
+        const needed = minFontSizeFor(lc, w)
+        if (needed !== null && needed <= size) {
+            return lc
+        }
+    }
+    return 15
+}
 
-    const textY = sRGBtoY(textRGB[0], textRGB[1], textRGB[2])
-    const bgY = sRGBtoY(bgRGB[0], bgRGB[1], bgRGB[2])
+// Classify an Lc (+ typography) into a semantic band for display.
+// Large / bold text (>=24px or weight 700+) qualifies for the lower "large
+// text" threshold, mirroring the way WCAG/APCA relax contrast for large text.
+function getAPCALevel (absLc, fontSize, fontWeight) {
+    const largeOrBold = (fontWeight >= 700) || (fontSize >= 24)
+
+    if (absLc >= 90) return { level: 'AAA', label: 'Preferred (≥90)' }
+    if (absLc >= 75) return { level: 'AA', label: 'Body text (≥75)' }
+    if (absLc >= 60) {
+        if (largeOrBold) return { level: 'large', label: 'Large text (≥60)' }
+        return { level: 'text', label: 'Text (≥60)' }
+    }
+    if (absLc >= 45) {
+        if (largeOrBold) return { level: 'large', label: 'Large text (≥45)' }
+        return { level: 'low', label: 'Low contrast (≥45)' }
+    }
+    if (absLc >= 30) return { level: 'ui', label: 'UI / non-text (≥30)' }
+    if (absLc >= 15) return { level: 'low', label: 'Low contrast (≥15)' }
+    return { level: 'fail', label: 'Fail (<15)' }
+}
+
+// Main entry point. fgColor and bgColor are CCA "Color" object instances.
+// options: { fontSize (px), fontWeight (100-900) }
+function apcaContrast (fgColor, bgColor, options = {}) {
+    const fontSize = options.fontSize || 16
+    const fontWeight = options.fontWeight || 400
+
+    const textY = colorToY(fgColor)
+    const bgY = colorToY(bgColor)
+
+    const Lc = APCAcontrast(textY, bgY)
+    const absLc = clamp(Math.abs(Lc), 0, 100)
+    const rounded = Math.round(absLc * 100) / 100
 
     const isDarkText = textY < bgY
-
-    let Lc
-    if (isDarkText) {
-        Lc = (Math.pow(bgY, 0.56) - Math.pow(textY, 0.57)) * 1.14 * 100
-    } else {
-        Lc = (Math.pow(bgY, 0.57) - Math.pow(textY, 0.56)) * 1.14 * 100
-    }
-
-    Lc = Math.round(clamp(Math.abs(Lc), 0, 100) * 100) / 100
-
-    const levelData = getAPCALevel(Lc)
+    const levelData = getAPCALevel(rounded, fontSize, fontWeight)
 
     return {
-        value: isDarkText ? Lc : -Lc,
-        absValue: Lc,
+        value: isDarkText ? rounded : -rounded,
+        absValue: rounded,
         level: levelData.level,
-        levelLabel: levelData.label
+        levelLabel: levelData.label,
+        fontSize,
+        fontWeight,
+        requiredFontSize: minFontSizeFor(rounded, fontWeight),
+        polarity: isDarkText ? 'dark-text' : 'light-text'
     }
 }
 
-module.exports = { apcaContrast }
+// Converts an Lc value + a known background luminance to an sRGB hex color.
+// Used by the inverse-contrast tool. Returns a hex string or false.
+function apcaInverse (targetLc, bgY, knownType = 'bg') {
+    return reverseAPCA(targetLc, bgY, knownType, 'hex')
+}
+
+module.exports = { apcaContrast, apcaInverse, colorToY, minFontSizeFor, minLcFor }

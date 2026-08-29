@@ -445,3 +445,77 @@ section#apca-results header {
     width: 1rem;
     margin-bottom: -0.15rem;
 }
+
+#apca-typography {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.5rem;
+    font-size: 0.85rem;
+}
+
+#apca-typography label {
+    font-weight: bold;
+}
+
+#apca-typography select {
+    padding: 0.15rem 0.25rem;
+}
+
+#apca-polarity {
+    margin-left: auto;
+    font-style: italic;
+}
+
+#apca-note.apca-note {
+    margin: 0.5rem;
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+#suggest-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.5rem;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--fg-border-primary);
+    padding-top: 0.5rem;
+}
+
+#suggest-tools #suggest-label {
+    font-weight: bold;
+}
+
+.suggest-btn {
+    padding: 0.2rem 0.6rem;
+    cursor: pointer;
+}
+
+#suggest-result {
+    font-style: italic;
+}
+
+#suggest-swatches {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.4rem;
+}
+
+#suggest-swatches .suggest-swatches-label {
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.suggest-swatch {
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 1px solid var(--fg-border-primary);
+    border-radius: 4px;
+    cursor: pointer;
+}

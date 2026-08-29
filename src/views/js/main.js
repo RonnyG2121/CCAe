@@ -1,8 +1,10 @@
 const { ipcRenderer, shell } = require('electron')
 const isMacOS = process.platform === 'darwin'
 const CCAColor = require('../../color/CCAcolor.js')
+const { isOklchString } = require('../../color/oklch.js')
 const store = require('../../store.js')
 let _i18n, pickerShortcutForeground, pickerShortcutBackground, _currentContrast
+let storeInitFontSize = 16
 document.addEventListener('DOMContentLoaded', () => {
     ipcRenderer.send('init-app')
     document.body.addEventListener("keydown",(evt)=>{
@@ -94,6 +96,22 @@ ipcRenderer.on('init', async (event, config) => {
     // Init shortcuts
     pickerShortcutForeground = await store.get("foreground.picker.shortcut")
     pickerShortcutBackground = await store.get("background.picker.shortcut")
+
+    // Init APCA typography selectors + change handlers
+    const apcaEnabled = await store.get("apca.enabled")
+    if (apcaEnabled) {
+        storeInitFontSize = await store.get("apca.fontSize") || 16
+        const initWeight = await store.get("apca.fontWeight") || 400
+        document.querySelector('#apca-font-size').value = storeInitFontSize
+        document.querySelector('#apca-font-weight').value = initWeight
+        document.querySelector('#apca-font-size').onchange = function() {
+            storeInitFontSize = parseInt(this.value, 10)
+            ipcRenderer.send('changeAPCAFont', 'fontSize', storeInitFontSize)
+        }
+        document.querySelector('#apca-font-weight').onchange = function() {
+            ipcRenderer.send('changeAPCAFont', 'fontWeight', parseInt(this.value, 10))
+        }
+    }
 })
 
 ipcRenderer.on('configChanged', (event, key, value) => {
@@ -110,6 +128,45 @@ ipcRenderer.on('configChanged', (event, key, value) => {
 ipcRenderer.on('colorChanged', (event, section, color) => {
     applyColor(section, color)
 })
+
+ipcRenderer.on('suggestionApplied', (event, section, rgb, cr, swatches) => {
+    const el = document.querySelector('#suggest-result')
+    if (el) {
+        if (rgb) {
+            el.textContent = `${_i18n.T('Main', 'Suggested %s colour')} ${rgb} (${cr.toLocaleString(_i18n.lang)}:1)`.replace('%s', section)
+        } else {
+            el.textContent = _i18n.T('Main', 'No accessible colour found for the chosen target.')
+        }
+    }
+    renderSuggestionSwatches(section, swatches)
+})
+
+function renderSuggestionSwatches(section, swatches) {
+    const container = document.querySelector('#suggest-swatches')
+    if (!container) return
+    container.innerHTML = ''
+    if (!swatches || !swatches.length) {
+        container.style.display = 'none'
+        return
+    }
+    container.style.display = 'block'
+    const label = document.createElement('span')
+    label.className = 'suggest-swatches-label'
+    label.textContent = _i18n.T('Main', 'Alternatives')
+    container.appendChild(label)
+    swatches.forEach(s => {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'suggest-swatch'
+        btn.style.background = s.rgb
+        btn.title = `${s.rgb} (${s.cr.toFixed(2)}:1)`
+        btn.setAttribute('aria-label', `${s.rgb} (${s.cr.toFixed(2)}:1)`)
+        btn.addEventListener('click', () => {
+            ipcRenderer.send('changeFromString', section, s.rgb, 'hex')
+        })
+        container.appendChild(btn)
+    })
+}
 
 ipcRenderer.on('contrastRatioChanged', (event, contrastRatio) => {
     _currentContrast = contrastRatio
@@ -225,6 +282,14 @@ function initEvents () {
             ipcRenderer.send('height-changed', mainHeight)
         }
     });
+
+    // Suggest accessible colour (WCAG AA non-text/text target 4.5:1)
+    document.querySelector('#suggest-foreground').onclick = function() {
+        ipcRenderer.send('suggestColor', 'foreground', 4.5)
+    }
+    document.querySelector('#suggest-background').onclick = function() {
+        ipcRenderer.send('suggestColor', 'background', 4.5)
+    }
 }
 
 function sliderRGBOnInput(section, component, value) {
@@ -415,6 +480,13 @@ function applyContrastRatio(contrastRatio) {
     document.getElementById('contrast-level-1-4-6').innerHTML = level_1_4_6
     document.getElementById('contrast-level-1-4-11').innerHTML = level_1_4_11
 
+    const elFocus = document.getElementById('contrast-level-2-4-11')
+    if (elFocus && contrastRatio.level2_4_11) {
+        elFocus.innerHTML = contrastRatio.level2_4_11 === 'pass'
+            ? `<div><img src="icons/pass.svg" alt="" /> ${_i18n.T('Main', 'Pass')} (${_i18n.T('Main', 'focus indicator ≥ 3:1 against adjacent colours')})</div>`
+            : `<div><img src="icons/fail.svg" alt="" /> ${_i18n.T('Main', 'Fail')} (${_i18n.T('Main', 'focus indicator < 3:1 against adjacent colours')})</div>`
+    }
+
     applyAPCAResults(contrastRatio)
 }
 
@@ -425,6 +497,19 @@ function applyAPCAResults(contrastRatio) {
     const sign = contrastRatio.apca >= 0 ? '+' : ''
     document.querySelector('#apca-value-num').innerHTML = `${sign}${absVal.toLocaleString(_i18n.lang)}`
     document.querySelector('#apca-level').innerHTML = `${_i18n.T('Main', 'Level')}: ${_i18n.T('Main', contrastRatio.apcaLevelLabel)}`
+
+    // Reflect the selected typography onto the APCA level + font size fields.
+    const fontSize = contrastRatio.apcaFontSize || storeInitFontSize
+    const fontWeight = contrastRatio.apcaFontWeight || 400
+    document.querySelector('#apca-font-size').value = fontSize
+    document.querySelector('#apca-font-weight').value = fontWeight
+
+    const polarityEl = document.querySelector('#apca-polarity')
+    if (polarityEl) {
+        polarityEl.textContent = contrastRatio.apcaPolarity === 'dark-text'
+            ? _i18n.T('Main', 'Dark text on light background')
+            : _i18n.T('Main', 'Light text on dark background')
+    }
 
     const tiers = [
         { key: 'AAA', threshold: 90 },
@@ -444,12 +529,12 @@ function applyAPCAResults(contrastRatio) {
 }
 
 function validateForegroundText(value) {
-    let formats = ["hex", "hexa", "rgb", "rgba", "hsl", "hsla", "hsv", "hsva", "name"]
+    let formats = ["hex", "hexa", "rgb", "rgba", "hsl", "hsla", "hsv", "hsva", "oklch", "oklcha", "oklab", "oklaba", "name"]
     validateText('foreground', value, formats)
 }
 
 function validateBackgroundText(value) {
-    let formats = ["hex", "rgb", "hsl", "hsv", "name"]
+    let formats = ["hex", "rgb", "hsl", "hsv", "oklch", "oklab", "name"]
     validateText('background', value, formats)
 }
 
@@ -457,11 +542,17 @@ function validateText(section, value, formats) {
     const string = value.toLowerCase().replace(/\s/g, "") // Clean input value
     let format = null
     if (string) {
-        for (let i = 0; i < formats.length; ++i) {
-            let f = formats[i];
-            if (CCAColor.is(f, string)) {
-                format = f
-                break
+        // OKLCH/OKLab detection (not supported by CCAColor.is, handled via culori)
+        const oklchFormat = isOklchString(string)
+        if (oklchFormat) {
+            format = mapOklchFormat(string, formats)
+        } else {
+            for (let i = 0; i < formats.length; ++i) {
+                let f = formats[i];
+                if (CCAColor.is(f, string)) {
+                    format = f
+                    break
+                }
             }
         }
     }
@@ -469,6 +560,15 @@ function validateText(section, value, formats) {
         store.set(`${section}.format`, format)
     }
     displayValidate(section, format, string)
+}
+
+function mapOklchFormat(string, formats) {
+    const isOklch = string.startsWith('oklch') || string.startsWith('oklacha')
+    const hasAlpha = /\/\s*[\d.]+\)?$/.test(string)
+    if (isOklch) {
+        return hasAlpha ? 'oklcha' : 'oklch'
+    }
+    return hasAlpha ? 'oklaba' : 'oklab'
 }
 
 function displayValidate(section, format, string) {
@@ -540,6 +640,7 @@ function translateHTML(i18n) {
 
     document.querySelector('#foreground-rgb > div.sync > label > span').textContent = i18n.T('Main', 'Synchronize colour values')
     document.querySelector('#foreground-rgb > div.sync > label').setAttribute('aria-label',i18n.T('Main', 'Synchronize foreground colour values'))
+    document.querySelector('#foreground-rgb > div.sync > label > input').setAttribute('aria-label',i18n.T('Main', 'Synchronize foreground colour values'))
 
     document.querySelector('#background-color .sliders').setAttribute('title', i18n.T('Main', 'Colour sliders'));
     document.querySelector('#background-color .picker').setAttribute('title', i18n.T('Main', 'Colour picker'));
@@ -561,6 +662,7 @@ function translateHTML(i18n) {
 
     document.querySelector('#background-rgb > div.sync > label > span').textContent = i18n.T('Main', 'Synchronize colour values')
     document.querySelector('#background-rgb > div.sync > label').setAttribute('aria-label',i18n.T('Main', 'Synchronize background colour values'))
+    document.querySelector('#background-rgb > div.sync > label > input').setAttribute('aria-label',i18n.T('Main', 'Synchronize background colour values'))
 
     /* 
         [ForEach Patterns]
@@ -572,9 +674,9 @@ function translateHTML(i18n) {
         const label = button.getAttribute('aria-label');
         if(label) button.setAttribute('aria-label',i18n.T('Main', label));
     })
-    /* translate aria-label for color sliders */
+    /* translate aria-label for color sliders and their value fields */
     document.querySelectorAll('section[id$="-sliders"]').forEach(section=>{ // get both slider sections, background and foreground.
-        const sliders = section.querySelectorAll('input[type="range"]'); // get sliders.
+        const sliders = section.querySelectorAll('input[type="range"], input[type="number"]'); // get sliders and value fields.
         sliders.forEach(slider=>{
             const label = slider.getAttribute("aria-label");
             if(label) {
@@ -599,15 +701,23 @@ function translateHTML(i18n) {
     document.querySelector('details#criteria_1-4-3 h3').textContent = i18n.T('Main', '1.4.3 Contrast (Minimum) (AA)')
     document.querySelector('details#criteria_1-4-6 h3').textContent = i18n.T('Main', '1.4.6 Contrast (Enhanced) (AAA)')
     document.querySelector('details#criteria_1-4-11 h3').textContent = i18n.T('Main', '1.4.11 Non-text Contrast (AA)')
+    document.querySelector('details#criteria_2-4-11 h3').textContent = i18n.T('Main', '2.4.11 Focus Appearance (Minimum) (AA)')
 
     document.querySelectorAll('details[id^=criteria] span.paraphrased').forEach(paraphrased=>{paraphrased.textContent = i18n.T('Main', 'Paraphrased')})
     document.querySelector('details span#sc_1_4_3').innerHTML = i18n.T('Main', 'sc_1_4_3')
     document.querySelector('details span#sc_1_4_6').innerHTML = i18n.T('Main', 'sc_1_4_6')
     document.querySelector('details span#sc_1_4_11').innerHTML = i18n.T('Main', 'sc_1_4_11')
+    document.querySelector('details span#sc_2_4_11').innerHTML = i18n.T('Main', 'sc_2_4_11')
 
     document.querySelector('#apca-results header h2').textContent = i18n.T('Main', 'APCA results')
     document.querySelector('#apca-value h3').textContent = i18n.T('Main', 'APCA contrast')
     document.querySelector('#apca-level').innerHTML = `${i18n.T('Main', 'Level')}: --`
+    document.querySelector('#apca-typography label[for="apca-font-size"]').textContent = i18n.T('Main', 'Font size (px)')
+    document.querySelector('#apca-typography label[for="apca-font-weight"]').textContent = i18n.T('Main', 'Weight')
+    document.querySelector('#apca-note').textContent = i18n.T('Main', 'APCA is a perceptual design-guidance metric (WCAG 3 candidate). For conformance, use the WCAG 2.1 results above.')
+    document.querySelector('#suggest-label').textContent = i18n.T('Main', 'Suggest accessible colour (WCAG AA)')
+    document.querySelector('#suggest-foreground').textContent = i18n.T('Main', 'Foreground')
+    document.querySelector('#suggest-background').textContent = i18n.T('Main', 'Background')
     document.querySelectorAll('.apca-tier').forEach(el => {
         const tier = el.getAttribute('data-tier')
         const labelParts = {
@@ -631,10 +741,6 @@ function setColorScheme (v) {
             document.documentElement.classList.remove('force-dark','force-light');
             document.documentElement.classList.add("system")
         break;
-        case "force-dark":
-            document.documentElement.classList.remove('force-light','system');
-            document.documentElement.classList.add("force-dark");
-            break;
         case "force-dark":
             document.documentElement.classList.remove('force-light','system');
             document.documentElement.classList.add("force-dark");

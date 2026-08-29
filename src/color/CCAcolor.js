@@ -2,6 +2,7 @@ const Color = require('./color.js') // https://github.com/Qix-/color/
 const cssKeywords = require('color-name');
 const blinder = require('color-blind');
 const { apcaContrast } = require('./apca.js')
+const { isOklchString, oklchToHex, rgbToOklch } = require('./oklch.js')
 
 Color.prototype.real = null
 Color.prototype.displayedValue = null
@@ -78,13 +79,29 @@ Color.prototype.getColorTextString=function (format) {
             return this.hsv().round().string(undefined,true)
         case 'hexa':
             return this.hexa()
+        case 'oklch':
+            return rgbToOklch(this.getReal().red(), this.getReal().green(), this.getReal().blue(), this.getReal().alpha(), 'oklch', false)
+        case 'oklcha':
+            return rgbToOklch(this.red(), this.green(), this.blue(), this.alpha(), 'oklch', true)
+        case 'oklab':
+            return rgbToOklch(this.getReal().red(), this.getReal().green(), this.getReal().blue(), this.getReal().alpha(), 'oklab', false)
+        case 'oklaba':
+            return rgbToOklch(this.red(), this.green(), this.blue(), this.alpha(), 'oklab', true)
         default: //hex
             return this.getReal().hex()
     }
 }
 
-Color.prototype.apcaContrast = function(otherColor) {
-    return apcaContrast(this.getReal(), otherColor)
+Color.prototype.apcaContrast = function(otherColor, options) {
+    return apcaContrast(this.getReal(), otherColor, options)
+}
+
+/* Normalize an input colour string. OKLCH/OKLab strings are converted to sRGB
+   hex so they can be stored/analysed in CCA's internal sRGB model. Non-OKLCH
+   strings are returned unchanged. */
+Color.parseString = function (str) {
+    const hex = oklchToHex(str)
+    return hex || str
 }
 
 module.exports = Color

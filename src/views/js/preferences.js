@@ -80,6 +80,7 @@ document.getElementById("reset-regular-text").addEventListener("click",async fun
     const regularText = "%i18n.f%: %f.hex%\n\
 %i18n.b%: %b.hex%\n\
 %i18n.cr%: %cr%:1\n\
+%i18n.apca%: %apca% (%apcaLevel%)\n\
     %i18n.1.4.3%\n\
         %1.4.3%\n\
     %i18n.1.4.6%\n\
@@ -183,6 +184,8 @@ function translateHTML(i18n) {
         i18n.T('Preferences', 'Background colour in hexa format'),
         i18n.T('Preferences', "Contrast ratio (raw)"),
         i18n.T('Preferences', "Contrast ratio (rounded)"),
+        i18n.T('Main', 'APCA contrast'),
+        i18n.T('Main', 'APCA contrast level'),
         i18n.T('Main', '1.4.3 Contrast (Minimum) (AA)'),
         i18n.T('Main', '1.4.6 Contrast (Enhanced) (AAA)'),
         i18n.T('Main', '1.4.11 Non-text Contrast (AA)')]

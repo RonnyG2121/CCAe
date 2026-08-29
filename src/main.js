@@ -71,6 +71,7 @@ const schema = {
                 default: '%i18n.f%: %f.hex%\n\
 %i18n.b%: %b.hex%\n\
 %i18n.cr%: %cr%:1\n\
+%i18n.apca%: %apca% (%apcaLevel%)\n\
 %i18n.1.4.3%\n\
     %1.4.3%\n\
 %i18n.1.4.6%\n\
@@ -100,6 +101,18 @@ const schema = {
             enabled: {
                 type: 'boolean',
                 default: true,
+            },
+            fontSize: {
+                type: 'number',
+                minimum: 8,
+                maximum: 48,
+                default: 16,
+            },
+            fontWeight: {
+                type: 'number',
+                minimum: 100,
+                maximum: 900,
+                default: 400,
             }
         },
         default: {}

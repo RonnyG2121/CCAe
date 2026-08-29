@@ -75,6 +75,8 @@ class CCAController {
         ipcMain.on('switchColors', this.switchColors.bind(this))
         ipcMain.on("darkMode",this.updateColor)
         ipcMain.on('getColorFromPicker', this.getColorFromPicker.bind(this))
+        ipcMain.on('changeAPCAFont', this.updateAPCAFont.bind(this))
+        ipcMain.on('suggestColor', this.suggestColor.bind(this))
         ipcMain.handle('getColorObject', (event, section) => {
             return this.getColorObject(section)
         })
@@ -112,6 +114,73 @@ class CCAController {
         i18n = new(require('./i18n'))(lang, localLang)
         t = i18n.asObject()
         this.updateContrastRatio()
+    }
+
+    updateAPCAFont(event, key, value) {
+        if (key !== 'fontSize' && key !== 'fontWeight') return
+        this.store.set(`apca.${key}`, value)
+        this.updateContrastRatio()
+    }
+
+    // Suggest an accessible colour for the non-fixed section so the pair meets
+    // the given WCAG target ratio, keeping the hue/saturation of the fixed
+    // colour (lightness search preserves the colour family).
+    suggestColor(event, targetSection, targetRatio) {
+        const fixedSection = targetSection === 'foreground' ? 'background' : 'foreground'
+        const fixed = this.sharedObject[`general.${fixedSection}Color`].getReal()
+        const ratio = targetRatio || 4.5
+
+        const hue = fixed.hue()
+        const sat = fixed.saturationl()
+
+        let best = null
+        // Search lightness toward white and toward black; prefer the candidate
+        // with the highest ratio for the requested minimum (strongest contrast).
+        const candidates = []
+        for (let li = 5; li <= 95; li++) {
+            const candidate = CCAColor.hsl(hue, sat, li)
+            const cr = candidate.contrast(fixed)
+            if (cr >= ratio) {
+                candidates.push({ color: candidate, cr })
+            }
+        }
+        if (candidates.length) {
+            candidates.sort((a, b) => b.cr - a.cr)
+            best = candidates[0]
+        }
+
+        if (best) {
+            this.sharedObject[`general.${targetSection}Color`] = best.color
+            this.updateGlobal(targetSection)
+            const swatches = this.buildSwatches(candidates)
+            this.sendEventToAll('suggestionApplied', targetSection, best.color.rgb().string(), best.cr, swatches)
+        } else {
+            this.sendEventToAll('suggestionApplied', targetSection, null, null, null)
+        }
+    }
+
+    // Build a small palette of alternative valid colours for the suggestion
+    // tool. Dedupes candidates, orders them from strongest to weakest contrast,
+    // and picks a handful evenly spaced across the range so the user gets
+    // several accessible alternatives (swatches).
+    buildSwatches(candidates) {
+        const SWATCH_COUNT = 6
+        const seen = new Set()
+        const unique = []
+        for (const c of candidates) {
+            const hex = c.color.hex()
+            if (!seen.has(hex)) {
+                seen.add(hex)
+                unique.push(c)
+            }
+        }
+        unique.sort((a, b) => b.cr - a.cr)
+        const step = Math.max(1, Math.floor(unique.length / SWATCH_COUNT))
+        const picked = []
+        for (let i = 0; i < unique.length && picked.length < SWATCH_COUNT; i += step) {
+            picked.push({ rgb: unique[i].color.rgb().string(), cr: unique[i].cr })
+        }
+        return picked
     }
 
     updateRGBComponent(event, section, component, value, synced = false) {
@@ -237,7 +306,7 @@ class CCAController {
 
     updateFromString(event, section, stringColor) {
         try {
-            this.sharedObject[`general.${section}Color`] = CCAColor(stringColor)
+            this.sharedObject[`general.${section}Color`] = CCAColor(CCAColor.parseString(stringColor))
         }
         catch(error) {
             console.error(error)
@@ -335,13 +404,22 @@ class CCAController {
             this.sharedObject['general.levelAA'] = 'fail'
         }
 
-        const apca = this.sharedObject['general.foregroundColor'].getReal().apcaContrast(this.sharedObject['general.backgroundColor'])
+        // WCAG 2.2 - 2.4.11 Focus Appearance (AA): focus indicator must have
+        // contrast >= 3:1 against adjacent colours.
+        const focusContrast = cr >= 3 ? 'pass' : 'fail'
+
+        const apca = this.sharedObject['general.foregroundColor'].getReal().apcaContrast(this.sharedObject['general.backgroundColor'], {
+            fontSize: this.store.get('apca.fontSize') || 16,
+            fontWeight: this.store.get('apca.fontWeight') || 400
+        })
         this.sharedObject['general.apcaContrastRaw'] = apca.value
         this.sharedObject['general.apcaLevel'] = apca.level
+        this.sharedObject['general.apcaLevelLabel'] = apca.levelLabel
 
         const object = {
             levelAA: this.sharedObject['general.levelAA'],
             levelAAA: this.sharedObject['general.levelAAA'],
+            level2_4_11: focusContrast,
             raw: cr,
             rounded: crr,
             rounding: rounding,
@@ -349,6 +427,10 @@ class CCAController {
             apcaAbs: apca.absValue,
             apcaLevel: apca.level,
             apcaLevelLabel: apca.levelLabel,
+            apcaFontSize: apca.fontSize,
+            apcaFontWeight: apca.fontWeight,
+            apcaRequiredFontSize: apca.requiredFontSize,
+            apcaPolarity: apca.polarity,
         }
         const def = ['achromatopsia', 'achromatomaly', 'protanopia', 'protanomaly', 'deuteranopia', 'deuteranomaly', 'tritanopia', 'tritanomaly']
         def.forEach(key => {
@@ -357,7 +439,10 @@ class CCAController {
             const crr = Number(cr.toFixed(rounding))
             object[key] = crr
 
-            const defApca = this.sharedObject[`${key}.foregroundColor`].apcaContrast(this.sharedObject[`${key}.backgroundColor`])
+            const defApca = this.sharedObject[`${key}.foregroundColor`].apcaContrast(this.sharedObject[`${key}.backgroundColor`], {
+                fontSize: this.store.get('apca.fontSize') || 16,
+                fontWeight: this.store.get('apca.fontWeight') || 400
+            })
             this.sharedObject[`${key}.apcaContrastRaw`] = defApca.value
             object[`${key}Apca`] = defApca.value
         })
@@ -405,11 +490,29 @@ class CCAController {
         // toLocalString removes trailing zero and use the correct decimal separator, based on the app select lang.
 
         const apca = this.sharedObject['general.apcaContrastRaw']
-        const apcaLevel = this.sharedObject['general.apcaLevel']
+        const apcaLevelRaw = this.sharedObject['general.apcaLevelLabel'] || this.sharedObject['general.apcaLevel']
+        const apcaLevel = t.Main[apcaLevelRaw] || apcaLevelRaw
         const apcaAbs = Math.abs(apca)
         const apcaStr = apcaAbs.toFixed(rounding).toLocaleString(i18n.lang)
 
         let text = template;
+        // Always include the APCA line in the copied results, even if the
+        // user's saved template predates APCA support. We insert it on its own
+        // line right after the contrast-ratio line and let the placeholder
+        // replacement below fill it in.
+        if (!text.includes('%apca%')) {
+            const lines = text.split('\n')
+            let insertIdx = -1
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('%crr%') || lines[i].includes('%cr%')) {
+                    insertIdx = i + 1
+                    break
+                }
+            }
+            if (insertIdx === -1) insertIdx = lines.length
+            lines.splice(insertIdx, 0, '\t%i18n.apca%: %apca% (%apcaLevel%)')
+            text = lines.join('\n')
+        }
         for (const item of [
             ['%f.hex%', foregroundColorString],
             ['%b.hex%', backgroundColorString],
