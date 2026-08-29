@@ -135,6 +135,12 @@
         "hsla": "hsla",
         "hsv": "hsv",
         "hsva": "hsva",
+        "Suggest accessible colour (WCAG AA)": "アクセシブルな色を提案 (WCAG AA)",
+        "Suggested %s colour": "推奨される%sカラー",
+        "Alternatives": "代替案",
+        "No accessible colour found for the chosen target.": "選択した目標に合うアクセシブルな色が見つかりませんでした。",
+        "Copy all swatches": "すべてのスウォッチをコピー",
+        "Target": "目標",
         "name": "name"
     },
     "Deficiency": {

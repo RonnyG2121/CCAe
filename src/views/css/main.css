@@ -489,6 +489,14 @@ section#apca-results header {
     font-weight: bold;
 }
 
+#suggest-tools .suggest-target-label {
+    font-weight: bold;
+}
+
+#suggest-target {
+    padding: 0.2rem;
+}
+
 .suggest-btn {
     padding: 0.2rem 0.6rem;
     cursor: pointer;
@@ -517,5 +525,35 @@ section#apca-results header {
     padding: 0;
     border: 1px solid var(--fg-border-primary);
     border-radius: 4px;
+    cursor: pointer;
+}
+
+.suggest-swatch-item {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 0.7rem;
+}
+
+.suggest-swatch-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.suggest-swatch-copy {
+    font-size: 0.65rem;
+    padding: 0.05rem 0.35rem;
+    cursor: pointer;
+}
+
+.suggest-swatch-caption {
+    opacity: 0.8;
+}
+
+.suggest-copy-all {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
     cursor: pointer;
 }

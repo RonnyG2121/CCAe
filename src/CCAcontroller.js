@@ -152,7 +152,7 @@ class CCAController {
         if (best) {
             this.sharedObject[`general.${targetSection}Color`] = best.color
             this.updateGlobal(targetSection)
-            const swatches = this.buildSwatches(candidates)
+            const swatches = this.buildSwatches(candidates, fixed)
             this.sendEventToAll('suggestionApplied', targetSection, best.color.rgb().string(), best.cr, swatches)
         } else {
             this.sendEventToAll('suggestionApplied', targetSection, null, null, null)
@@ -162,9 +162,12 @@ class CCAController {
     // Build a small palette of alternative valid colours for the suggestion
     // tool. Dedupes candidates, orders them from strongest to weakest contrast,
     // and picks a handful evenly spaced across the range so the user gets
-    // several accessible alternatives (swatches).
-    buildSwatches(candidates) {
+    // several accessible alternatives (swatches). Each swatch also carries the
+    // predicted APCA Lc value (magnitude) against the fixed colour.
+    buildSwatches(candidates, fixed) {
         const SWATCH_COUNT = 6
+        const fontSize = this.store.get('apca.fontSize') || 16
+        const fontWeight = this.store.get('apca.fontWeight') || 400
         const seen = new Set()
         const unique = []
         for (const c of candidates) {
@@ -178,7 +181,8 @@ class CCAController {
         const step = Math.max(1, Math.floor(unique.length / SWATCH_COUNT))
         const picked = []
         for (let i = 0; i < unique.length && picked.length < SWATCH_COUNT; i += step) {
-            picked.push({ rgb: unique[i].color.rgb().string(), cr: unique[i].cr })
+            const apca = unique[i].color.getReal().apcaContrast(fixed, { fontSize, fontWeight }).absValue
+            picked.push({ rgb: unique[i].color.rgb().string(), cr: unique[i].cr, apca })
         }
         return picked
     }

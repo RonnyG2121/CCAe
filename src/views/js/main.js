@@ -1,4 +1,4 @@
-const { ipcRenderer, shell } = require('electron')
+const { ipcRenderer, shell, clipboard } = require('electron')
 const isMacOS = process.platform === 'darwin'
 const CCAColor = require('../../color/CCAcolor.js')
 const { isOklchString } = require('../../color/oklch.js')
@@ -112,6 +112,13 @@ ipcRenderer.on('init', async (event, config) => {
             ipcRenderer.send('changeAPCAFont', 'fontWeight', parseInt(this.value, 10))
         }
     }
+
+    // Init suggestion contrast target selector
+    const initSuggestTarget = await store.get('apca.suggestTarget')
+    if (initSuggestTarget) document.querySelector('#suggest-target').value = initSuggestTarget
+    document.querySelector('#suggest-target').onchange = function() {
+        store.set('apca.suggestTarget', parseFloat(this.value))
+    }
 })
 
 ipcRenderer.on('configChanged', (event, key, value) => {
@@ -133,7 +140,8 @@ ipcRenderer.on('suggestionApplied', (event, section, rgb, cr, swatches) => {
     const el = document.querySelector('#suggest-result')
     if (el) {
         if (rgb) {
-            el.textContent = `${_i18n.T('Main', 'Suggested %s colour')} ${rgb} (${cr.toLocaleString(_i18n.lang)}:1)`.replace('%s', section)
+            const sectionLabel = _i18n.T('Main', section === 'foreground' ? 'Foreground' : 'Background')
+            el.textContent = `${_i18n.T('Main', 'Suggested %s colour')} ${rgb} (${cr.toLocaleString(_i18n.lang)}:1)`.replace('%s', sectionLabel)
         } else {
             el.textContent = _i18n.T('Main', 'No accessible colour found for the chosen target.')
         }
@@ -155,17 +163,53 @@ function renderSuggestionSwatches(section, swatches) {
     label.textContent = _i18n.T('Main', 'Alternatives')
     container.appendChild(label)
     swatches.forEach(s => {
+        const item = document.createElement('span')
+        item.className = 'suggest-swatch-item'
+
+        const row = document.createElement('span')
+        row.className = 'suggest-swatch-row'
+
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = 'suggest-swatch'
         btn.style.background = s.rgb
-        btn.title = `${s.rgb} (${s.cr.toFixed(2)}:1)`
-        btn.setAttribute('aria-label', `${s.rgb} (${s.cr.toFixed(2)}:1)`)
+        const desc = `${s.rgb} (${s.cr.toFixed(2)}:1)`
+        btn.title = desc
+        btn.setAttribute('aria-label', desc)
         btn.addEventListener('click', () => {
             ipcRenderer.send('changeFromString', section, s.rgb, 'hex')
         })
-        container.appendChild(btn)
+
+        const copy = document.createElement('button')
+        copy.type = 'button'
+        copy.className = 'suggest-swatch-copy'
+        copy.textContent = _i18n.T('Menu', 'Copy')
+        copy.setAttribute('aria-label', `${_i18n.T('Menu', 'Copy')} ${s.rgb}`)
+        copy.addEventListener('click', () => {
+            clipboard.writeText(s.rgb)
+            announceForAccessibility(`${_i18n.T('Main', 'Results copied.')} ${s.rgb}`)
+        })
+
+        row.append(btn, copy)
+
+        const caption = document.createElement('small')
+        caption.className = 'suggest-swatch-caption'
+        caption.textContent = `${s.cr.toFixed(2)}:1`
+
+        item.append(row, caption)
+        container.appendChild(item)
     })
+
+    const copyAll = document.createElement('button')
+    copyAll.type = 'button'
+    copyAll.className = 'suggest-copy-all'
+    copyAll.textContent = _i18n.T('Main', 'Copy all swatches')
+    copyAll.addEventListener('click', () => {
+        const lines = swatches.map(s => `${s.rgb}\t${s.cr.toFixed(2)}:1\tAPCA ${s.apca}`).join('\n')
+        clipboard.writeText(lines)
+        announceForAccessibility(_i18n.T('Main', 'Results copied.'))
+    })
+    container.appendChild(copyAll)
 }
 
 ipcRenderer.on('contrastRatioChanged', (event, contrastRatio) => {
@@ -283,12 +327,13 @@ function initEvents () {
         }
     });
 
-    // Suggest accessible colour (WCAG AA non-text/text target 4.5:1)
+    // Suggest accessible colour (WCAG target ratio from #suggest-target: 3:1 UI, 4.5:1 AA, 7:1 AAA)
+    const suggestTargetRatio = () => parseFloat(document.querySelector('#suggest-target').value)
     document.querySelector('#suggest-foreground').onclick = function() {
-        ipcRenderer.send('suggestColor', 'foreground', 4.5)
+        ipcRenderer.send('suggestColor', 'foreground', suggestTargetRatio())
     }
     document.querySelector('#suggest-background').onclick = function() {
-        ipcRenderer.send('suggestColor', 'background', 4.5)
+        ipcRenderer.send('suggestColor', 'background', suggestTargetRatio())
     }
 }
 
@@ -718,6 +763,7 @@ function translateHTML(i18n) {
     document.querySelector('#suggest-label').textContent = i18n.T('Main', 'Suggest accessible colour (WCAG AA)')
     document.querySelector('#suggest-foreground').textContent = i18n.T('Main', 'Foreground')
     document.querySelector('#suggest-background').textContent = i18n.T('Main', 'Background')
+    document.querySelector('#suggest-tools .suggest-target-label').textContent = i18n.T('Main', 'Target')
     document.querySelectorAll('.apca-tier').forEach(el => {
         const tier = el.getAttribute('data-tier')
         const labelParts = {

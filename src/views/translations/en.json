@@ -148,6 +148,8 @@
         "Foreground": "Foreground",
         "Background": "Background",
         "No accessible colour found for the chosen target.": "No accessible colour found for the chosen target.",
+        "Copy all swatches": "Copy all swatches",
+        "Target": "Target",
         "Preferred (AAA)": "Preferred (AAA)",
         "Good (AA)": "Good (AA)",
         "Large text": "Large text",

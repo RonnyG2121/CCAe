@@ -135,6 +135,12 @@
         "hsla": "hsla",
         "hsv": "hsv",
         "hsva": "hsva",
+        "Suggest accessible colour (WCAG AA)": "建议无障碍颜色（WCAG AA）",
+        "Suggested %s colour": "建议的%s颜色",
+        "Alternatives": "备选方案",
+        "No accessible colour found for the chosen target.": "未找到所选目标的可用无障碍颜色。",
+        "Copy all swatches": "复制所有色板",
+        "Target": "目标",
         "name": "name"
     },
     "Deficiency": {

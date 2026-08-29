@@ -150,3 +150,45 @@ Si algún test falla, lo habitual será un ajuste en `src/color/apca.js` o en la
    - Las **etiquetas visibles** están traducidas (Rojo, Verde, Azul, Alfa, Tono, Saturación, Claridad, Valor) — incluyendo el panel Background HSV (antes "Hue" quedaba en inglés).
    - Con un lector de pantalla (o inspeccionando el DOM con DevTools), los **deslizadores** anuncian p. ej. "Rojo de primer plano" y los **campos numéricos** "Valor del rojo de primer plano": nombres accesibles distintos e identificables.
 4. Alterna el idioma entre Español e Inglés: los aria-label deben cambiar en ambos sentidos sin recargar la app.
+
+## Sesión 3: Herramienta de sugerencias — objetivo configurable, copiado y traducciones
+
+### Corrección del mensaje de sugerencia sin traducir
+
+- El mensaje "Color **foreground/background** sugerido …" insertaba los literales en inglés `'foreground'`/`'background'`. Ahora traduce el nombre de sección con las claves `Foreground`/`Background` ya existentes (`src/views/js/main.js`).
+
+### Traducciones de la herramienta de sugerencias (12 idiomas)
+
+- Las 4 claves de la herramienta (`Suggest accessible colour (WCAG AA)`, `Suggested %s colour`, `Alternatives`, `No accessible colour found for the chosen target.`) solo existían en `en`/`es`; se añadieron a `de`, `fr`, `hu`, `it`, `ja`, `ko`, `nl`, `pl`, `pt-BR`, `ru`, `zh-CN`, `zh-TW`.
+- Nuevas claves `Target` y `Copy all swatches` en los 14 idiomas.
+
+### Selector de objetivo de contraste configurable
+
+- Nuevo selector **Objetivo** en la herramienta de sugerencias con tres niveles WCAG: **3:1** (UI/componentes, 1.4.11), **4.5:1** (texto AA) y **7:1** (texto AAA) (`src/views/main.html`).
+- Los botones de sugerencia envían el ratio elegido al controlador (`src/views/js/main.js`).
+- El valor se persiste en `apca.suggestTarget` (schema en `src/main.js`, init y `onchange` en la vista).
+
+### APCA previsto por muestra
+
+- `buildSwatches` calcula ahora el Lc APCA de cada candidato contra el color fijo con la tipografía activa (`absValue`) (`src/CCAcontroller.js`).
+- El APCA **no se muestra junto al ratio** en el UI (resultaba redundante); cada muestra muestra solo el ratio y el Lc APCA queda en la tabla copiada.
+
+### Copiado de las muestras
+
+- Botón **Copiar** por muestra: copia el hex al portapapeles (`clipboard.writeText`) con anuncio para lectores de pantalla.
+- Botón **Copiar todas las muestras**: copia una tabla `rgb \t ratio:1 \t APCA <Lc>` con las 6 muestras (`src/views/js/main.js`).
+
+### Archivos modificados (Sesión 3)
+
+- `src/CCAcontroller.js`
+- `src/main.js`
+- `src/views/main.html`
+- `src/views/js/main.js`
+- `src/views/css/main.css`
+- `src/views/translations/{en,es,de,fr,it,pt-BR,nl,pl,hu,ru,ja,ko,zh-CN,zh-TW}.json`
+
+### Verificación
+
+- Los 14 JSON se validaron (parseo correcto y presencia de las claves nuevas).
+- Arranque de la app sin errores (binario de Electron con `node --test` no disponible en el PATH de la sesión).
+- Prueba manual: selector de objetivo persiste al reiniciar; swatches muestran solo el ratio; copiado individual y masivo funcionando.

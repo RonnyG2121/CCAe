@@ -113,6 +113,12 @@ const schema = {
                 minimum: 100,
                 maximum: 900,
                 default: 400,
+            },
+            suggestTarget: {
+                type: 'number',
+                minimum: 1,
+                maximum: 21,
+                default: 4.5,
             }
         },
         default: {}

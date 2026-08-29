@@ -140,6 +140,12 @@
         "hsla": "hsla",
         "hsv": "hsv",
         "hsva": "hsva",
+        "Suggest accessible colour (WCAG AA)": "접근 가능한 색상 제안 (WCAG AA)",
+        "Suggested %s colour": "제안된 %s 색상",
+        "Alternatives": "대안",
+        "No accessible colour found for the chosen target.": "선택한 목표에 사용할 수 있는 접근성 색상을 찾지 못했습니다.",
+        "Copy all swatches": "모든 견본 복사",
+        "Target": "목표",
         "name": "name"
     },
     "Deficiency": {

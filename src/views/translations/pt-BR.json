@@ -140,6 +140,12 @@
         "hsla": "hsla",
         "hsv": "hsv",
         "hsva": "hsva",
+        "Suggest accessible colour (WCAG AA)": "Sugerir cor acessível (WCAG AA)",
+        "Suggested %s colour": "Cor %s sugerida",
+        "Alternatives": "Alternativas",
+        "No accessible colour found for the chosen target.": "Nenhuma cor acessível encontrada para o alvo escolhido.",
+        "Copy all swatches": "Copiar todas as amostras",
+        "Target": "Objetivo",
         "name": "name"
     },
     "Deficiency": {

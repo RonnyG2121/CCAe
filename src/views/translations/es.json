@@ -142,6 +142,8 @@
         "Foreground": "Primer plano",
         "Background": "Fondo",
         "No accessible colour found for the chosen target.": "No se encontró ningún color accesible para el objetivo elegido.",
+        "Copy all swatches": "Copiar todas las muestras",
+        "Target": "Objetivo",
         "Preferred (AAA)": "Preferido (AAA)",
         "Good (AA)": "Bueno (AA)",
         "Large text": "Texto grande",

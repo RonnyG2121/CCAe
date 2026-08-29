@@ -135,6 +135,12 @@
         "hsla": "hsla",
         "hsv": "hsv",
         "hsva": "hsva",
+        "Suggest accessible colour (WCAG AA)": "Elérhető szín javaslata (WCAG AA)",
+        "Suggested %s colour": "Javasolt %s szín",
+        "Alternatives": "Alternatívák",
+        "No accessible colour found for the chosen target.": "A választott célhoz nem található elérhető szín.",
+        "Copy all swatches": "Összes színminta másolása",
+        "Target": "Célérték",
         "name": "name"
     },
     "Deficiency": {

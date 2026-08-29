@@ -135,6 +135,12 @@
         "hsla": "hsla",
         "hsv": "hsv",
         "hsva": "hsva",
+        "Suggest accessible colour (WCAG AA)": "Toegankelijke kleur voorstellen (WCAG AA)",
+        "Suggested %s colour": "Voorgestelde %s-kleur",
+        "Alternatives": "Alternatieven",
+        "No accessible colour found for the chosen target.": "Geen toegankelijke kleur gevonden voor het gekozen doel.",
+        "Copy all swatches": "Alle stalen kopiëren",
+        "Target": "Doel",
         "name": "name"
     },
     "Deficiency": {
