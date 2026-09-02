@@ -105,7 +105,7 @@ class CCAController {
         if (hexColor) {
             this.updateFromString(null, section, hexColor)
         }
-        this.sendEventToAll('pickerToggled', section, false)
+        this.sendEventToAll('pickerToggled', section, false, hexColor)
     }
 
     async updateLanguage() {

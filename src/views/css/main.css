@@ -446,6 +446,17 @@ section#apca-results header {
     margin-bottom: -0.15rem;
 }
 
+.apca-tier.apca-tier-effective {
+    outline: 0.15rem solid currentColor;
+    outline-offset: 0.15rem;
+    font-weight: bold;
+}
+
+#apca-effective {
+    margin: 0.5rem;
+    font-weight: bold;
+}
+
 #apca-typography {
     display: flex;
     align-items: center;

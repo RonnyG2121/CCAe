@@ -227,8 +227,16 @@ ipcRenderer.on('langChanged', async (event, lang, localLang) => {
     applyContrastRatio(_currentContrast)
 })
 
-ipcRenderer.on('pickerToggled', (event, section, state) => {
+ipcRenderer.on('pickerToggled', (event, section, state, hexColor) => {
     document.querySelector('#' + section + '-color .picker').setAttribute('aria-pressed', state)
+    if (state) {
+        const sectionLabel = _i18n.T('Main', section === 'foreground' ? 'Foreground' : 'Background')
+        announceForAccessibility(`${_i18n.T('Main', 'Colour picker started for')} ${sectionLabel}`)
+    } else if (hexColor) {
+        announceForAccessibility(`${_i18n.T('Main', 'Colour applied')}: ${hexColor}`)
+    } else {
+        announceForAccessibility(_i18n.T('Main', 'Colour picker cancelled'))
+    }
 })
 
 ipcRenderer.on('showPicker', (event, section) => {
@@ -571,6 +579,29 @@ function applyAPCAResults(contrastRatio) {
             el.innerHTML = `<img src="icons/fail.svg" alt="" /> ${_i18n.T('Main', 'Fail')}`
         }
     })
+
+    // Highlight the tier that applies to the chosen typography (official APCA
+    // bands: >=90 preferred, >=75 body text, >=60 text / large text, >=45, >=30).
+    document.querySelectorAll('.apca-tier').forEach((tier) => tier.classList.remove('apca-tier-effective'))
+    let effectiveKey = null
+    if (contrastRatio.apcaLevel === 'large') {
+        effectiveKey = (contrastRatio.apcaLevelLabel || '').includes('60') ? 'text' : 'large'
+    } else if (['AAA', 'AA', 'text', 'ui'].includes(contrastRatio.apcaLevel)) {
+        effectiveKey = contrastRatio.apcaLevel
+    } else if (contrastRatio.apcaLevel === 'low') {
+        effectiveKey = absVal >= 45 ? 'large' : null
+    }
+    const effectiveEl = document.querySelector('#apca-effective')
+    if (effectiveKey && effectiveEl) {
+        document.querySelector(`.apca-tier[data-tier="${effectiveKey}"]`).classList.add('apca-tier-effective')
+        const threshold = tiers.find((t) => t.key === effectiveKey).threshold
+        const result = absVal >= threshold
+            ? _i18n.T('Main', 'Pass')
+            : _i18n.T('Main', 'Fail')
+        effectiveEl.textContent = `${_i18n.T('Main', 'Effective bar for your typography')}: ${_i18n.T('Main', contrastRatio.apcaLevelLabel)} - ${result}`
+    } else if (effectiveEl) {
+        effectiveEl.textContent = ''
+    }
 }
 
 function validateForegroundText(value) {
@@ -641,7 +672,8 @@ function leaveText(section, el) {
     if (el.getAttribute('aria-invalid') === 'true') {
         const freeFormat =  document.querySelector('#' + section + '-free-format')
         if (freeFormat.getAttribute('aria-live')) {
-            freeFormat.innerHTML = _i18n.T('Main', 'error incorrect format').replace('%s', section)
+            const sectionLabel = _i18n.T('Main', section === 'foreground' ? 'Foreground' : 'Background')
+            freeFormat.innerHTML = _i18n.T('Main', 'error incorrect format').replace('%s', sectionLabel)
         }
     } else {
         let color = sharedObject.deficiencies.normal[section + "Color"]
